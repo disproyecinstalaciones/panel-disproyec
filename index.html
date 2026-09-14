@@ -1,0 +1,551 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Panel DISPROYEC</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#1E2420;
+    --paper:#F5F1E7;
+    --paper-raised:#FCFAF3;
+    --line:#DDD5C2;
+    --line-soft:#E9E3D3;
+    --muted:#7A7462;
+    --copper:#B4652C;
+    --teal:#2C5753;
+    --amber:#B4863A;
+    --ok:#3F7D52;
+    --grey-state:#8C8573;
+    --focus:#2C5753;
+    --danger:#B23A32;
+    --shadow: 0 1px 2px rgba(30,36,32,0.06), 0 6px 16px -8px rgba(30,36,32,0.18);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#ECE8DD; --paper:#161B18; --paper-raised:#1E2521; --line:#333B34; --line-soft:#262E28;
+      --muted:#9A9584; --copper:#D6874F; --teal:#5C9994; --amber:#D8AE6C; --ok:#5FAE79;
+      --grey-state:#A39C89; --focus:#5C9994; --danger:#E07A70;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 24px -10px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#ECE8DD; --paper:#161B18; --paper-raised:#1E2521; --line:#333B34; --line-soft:#262E28;
+    --muted:#9A9584; --copper:#D6874F; --teal:#5C9994; --amber:#D8AE6C; --ok:#5FAE79;
+    --grey-state:#A39C89; --focus:#5C9994; --danger:#E07A70;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 10px 24px -10px rgba(0,0,0,0.5);
+  }
+  *{box-sizing:border-box;}
+  html{color-scheme:light dark;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"IBM Plex Sans","Segoe UI",Arial,sans-serif;
+    padding-inline:20px; padding-block:0 40px; min-height:100vh;
+  }
+  .mono{font-family:"IBM Plex Mono","SF Mono",Consolas,monospace; font-variant-numeric:tabular-nums;}
+  [hidden]{display:none !important;}
+
+  /* ---------- login ---------- */
+  .login-wrap{
+    min-height:100vh; display:flex; align-items:center; justify-content:center;
+    margin-inline:-20px; padding:20px;
+  }
+  .login-card{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:14px;
+    padding:28px; width:100%; max-width:360px; box-shadow:var(--shadow);
+  }
+  .login-card h1{
+    font-family:"Big Shoulders",sans-serif; text-transform:uppercase; font-weight:800;
+    font-size:26px; margin:0 0 4px; border-bottom:3px solid var(--copper); padding-bottom:10px;
+  }
+  .login-card .sub{font-size:12.5px; color:var(--muted); margin:8px 0 18px; font-family:"IBM Plex Mono",monospace;}
+  .login-error{font-size:13px; color:var(--danger); margin-top:8px; min-height:18px;}
+
+  /* ---------- header / nameplate ---------- */
+  .nameplate{
+    margin-inline:-20px; padding:22px 20px 18px;
+    background:linear-gradient(180deg, var(--ink) 0%, color-mix(in srgb, var(--ink) 92%, var(--copper)) 100%);
+    color:var(--paper); border-bottom:3px solid var(--copper);
+    display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px;
+  }
+  .nameplate h1{
+    font-family:"Big Shoulders",sans-serif; font-weight:800; text-transform:uppercase; letter-spacing:0.03em;
+    font-size:clamp(28px,5vw,40px); margin:0; line-height:0.95; text-wrap:balance;
+  }
+  .nameplate .sub{
+    font-family:"IBM Plex Mono",monospace; font-size:12.5px; letter-spacing:0.04em;
+    color:color-mix(in srgb, var(--paper) 70%, transparent); margin-top:4px;
+  }
+  .nameplate-right{display:flex; align-items:center; gap:10px;}
+
+  .btn{
+    font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-size:13.5px;
+    border:1px solid transparent; border-radius:7px; padding:9px 14px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:6px; transition:transform .08s ease, filter .12s ease;
+    width:100%;
+  }
+  .btn:active{transform:translateY(1px);}
+  .btn-primary{background:var(--copper); color:#1B120A;}
+  .btn-primary:hover{filter:brightness(1.06);}
+  .btn-ghost{background:transparent; border-color:color-mix(in srgb, var(--paper) 35%, transparent); color:var(--paper); width:auto;}
+  .btn-ghost:hover{background:color-mix(in srgb, var(--paper) 12%, transparent);}
+  .btn-plain{background:var(--paper-raised); border-color:var(--line); color:var(--ink); width:auto;}
+  .btn-plain:hover{border-color:var(--copper);}
+  .btn-danger{background:transparent; border-color:var(--danger); color:var(--danger); width:auto;}
+  .btn:focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
+  .btn-header{width:auto;}
+
+  /* ---------- filters ---------- */
+  .filters{display:flex; flex-wrap:wrap; gap:8px; align-items:center; padding:16px 0 6px;}
+  .filters .lbl{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.08em; text-transform:uppercase;
+    color:var(--muted); margin-right:2px;
+  }
+  .chip{
+    font-family:"IBM Plex Sans",sans-serif; font-size:13px; font-weight:600; padding:6px 12px;
+    border-radius:999px; border:1px solid var(--line); background:var(--paper-raised); color:var(--ink); cursor:pointer;
+  }
+  .chip[aria-pressed="true"]{border-color:var(--copper); background:color-mix(in srgb, var(--copper) 16%, var(--paper-raised));}
+  .chip .dot{display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle;}
+
+  /* ---------- board ---------- */
+  .board{display:grid; grid-template-columns:repeat(4, minmax(260px,1fr)); gap:16px; margin-top:14px;}
+  @media (max-width:900px){
+    .board{
+      grid-template-columns:100%; grid-auto-flow:column; grid-auto-columns:86%;
+      overflow-x:auto; scroll-snap-type:x mandatory; padding-bottom:8px;
+      margin-inline:-20px; padding-inline:20px;
+    }
+    .column{scroll-snap-align:start;}
+  }
+  .column{background:var(--line-soft); border-radius:12px; padding:10px; display:flex; flex-direction:column; gap:10px; min-height:120px;}
+  .column-head{display:flex; align-items:center; justify-content:space-between; padding:4px 6px 8px; border-bottom:3px solid var(--st-color, var(--line));}
+  .column-head .name{font-family:"Big Shoulders",sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:0.02em; font-size:16px;}
+  .column-head .count{
+    font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted); background:var(--paper-raised);
+    border:1px solid var(--line); border-radius:999px; padding:1px 8px;
+  }
+  .cards{display:flex; flex-direction:column; gap:10px; min-height:40px;}
+  .empty-hint{font-size:12.5px; color:var(--muted); text-align:center; padding:14px 6px; border:1.5px dashed var(--line); border-radius:9px;}
+
+  .card{background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:12px 12px 10px; box-shadow:var(--shadow); cursor:pointer;}
+  .card:hover{border-color:var(--copper);}
+  .card .tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; margin-bottom:7px;}
+  .card h3{margin:0 0 5px; font-size:15px; font-weight:700; line-height:1.25;}
+  .card p{margin:0; font-size:13px; line-height:1.42; color:var(--muted); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
+  .card-foot{display:flex; align-items:center; justify-content:space-between; margin-top:10px; padding-top:8px; border-top:1px solid var(--line);}
+  .card-foot .date{font-size:11px; color:var(--muted);}
+  .movebtns{display:flex; gap:4px;}
+  .movebtn{
+    width:24px; height:24px; border-radius:6px; border:1px solid var(--line); background:var(--paper); color:var(--ink);
+    font-size:13px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  }
+  .movebtn:hover{border-color:var(--copper); color:var(--copper);}
+  .movebtn:disabled{opacity:0.28; cursor:default;}
+  .movebtn:disabled:hover{border-color:var(--line); color:var(--ink);}
+
+  /* ---------- modal ---------- */
+  .backdrop{position:fixed; inset:0; background:rgba(10,12,10,0.45); display:flex; align-items:center; justify-content:center; padding:20px; z-index:50;}
+  .modal{background:var(--paper-raised); border:1px solid var(--line); border-radius:14px; width:100%; max-width:440px; max-height:90vh; overflow-y:auto; padding:20px; box-shadow:var(--shadow);}
+  .modal h2{font-family:"Big Shoulders",sans-serif; text-transform:uppercase; font-weight:800; font-size:22px; margin:0 0 14px;}
+  .field{margin-bottom:13px; display:flex; flex-direction:column; gap:5px;}
+  .field label{font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted);}
+  .field input, .field select, .field textarea{
+    font-family:"IBM Plex Sans",sans-serif; font-size:14px; padding:9px 10px; border-radius:7px;
+    border:1px solid var(--line); background:var(--paper); color:var(--ink); width:100%;
+  }
+  .field textarea{resize:vertical; min-height:64px; font-family:inherit;}
+  .field input:focus, .field select:focus, .field textarea:focus{outline:2px solid var(--focus); outline-offset:1px; border-color:var(--focus);}
+  .modal-actions{display:flex; justify-content:space-between; align-items:center; margin-top:16px; gap:8px; flex-wrap:wrap;}
+  .modal-actions .right{display:flex; gap:8px;}
+  .status-banner{font-size:13px; color:var(--muted); padding:10px 0 0;}
+</style>
+</head>
+<body>
+
+<div class="login-wrap" id="login-wrap">
+  <div class="login-card">
+    <h1>Panel DISPROYEC</h1>
+    <div class="sub">CONTROL DE PROYECTOS — ACCESO</div>
+    <form id="login-form">
+      <div class="field">
+        <label for="l-email">Email</label>
+        <input id="l-email" type="email" required autocomplete="username">
+      </div>
+      <div class="field">
+        <label for="l-pass">Contraseña</label>
+        <input id="l-pass" type="password" required autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" type="submit">Entrar</button>
+      <div class="login-error" id="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<div id="app" hidden>
+  <div class="nameplate">
+    <div>
+      <h1>Panel DISPROYEC</h1>
+      <div class="sub">CONTROL DE PROYECTOS · EMPRESAS CONTRATISTAS Y ADMINISTRACIÓN</div>
+    </div>
+    <div class="nameplate-right">
+      <span class="sub mono" id="who"></span>
+      <button class="btn btn-ghost btn-header" id="btn-logout">Salir</button>
+      <button class="btn btn-primary btn-header" id="btn-new">+ Nueva tarea</button>
+    </div>
+  </div>
+
+  <div class="filters" id="filters">
+    <span class="lbl">Empresa</span>
+  </div>
+
+  <div id="status-banner" class="status-banner" hidden></div>
+
+  <div class="board" id="board"></div>
+</div>
+
+<div class="backdrop" id="backdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <h2 id="modal-title">Nueva tarea</h2>
+    <form id="card-form">
+      <div class="field">
+        <label for="f-titulo">Título</label>
+        <input id="f-titulo" required maxlength="120" placeholder="Ej: Aclarar reparto de material">
+      </div>
+      <div class="field">
+        <label for="f-empresa">Empresa</label>
+        <input id="f-empresa" required maxlength="60" list="empresa-list" placeholder="Ej: Zenthera Energía">
+        <datalist id="empresa-list"></datalist>
+      </div>
+      <div class="field">
+        <label for="f-estado">Estado</label>
+        <select id="f-estado"></select>
+      </div>
+      <div class="field">
+        <label for="f-paso">Próximo paso</label>
+        <textarea id="f-paso" maxlength="400" placeholder="¿Qué hay que hacer o esperar a continuación?"></textarea>
+      </div>
+      <div class="modal-actions">
+        <div id="delete-zone"></div>
+        <div class="right">
+          <button type="button" class="btn btn-plain" id="btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-save">Guardar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---- Config de tu proyecto Supabase ----
+  var SUPABASE_URL = "https://lfewuacndsezpidltlzg.supabase.co";
+  var SUPABASE_KEY = "sb_publishable_FsjM5QzubEy6XWaVM97sJA_9TZZMM-q";
+  var supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  var ESTADOS = [
+    {key:"pendiente", label:"Pendiente", cssVar:"--grey-state"},
+    {key:"en_curso",  label:"En curso",  cssVar:"--teal"},
+    {key:"esperando", label:"Esperando", cssVar:"--amber"},
+    {key:"hecho",     label:"Hecho",     cssVar:"--ok"}
+  ];
+  var ESTADO_KEYS = ESTADOS.map(function(e){ return e.key; });
+
+  var KNOWN_EMPRESAS = {
+    "Zenthera Energía": 202,
+    "Proyectos & Eficiencia Térmica": 162,
+    "Hummer Reformas": 278,
+    "Mercantil Eléctrico": 342,
+    "DISPROYEC / Admin": -1
+  };
+
+  function isDark(){
+    var attr = document.documentElement.getAttribute("data-theme");
+    if(attr === "dark") return true;
+    if(attr === "light") return false;
+    return window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+  function hashHue(str){
+    var h = 0;
+    for(var i=0;i<str.length;i++){ h = (h*31 + str.charCodeAt(i)) >>> 0; }
+    return h % 360;
+  }
+  function empresaColors(name){
+    var dark = isDark();
+    if(KNOWN_EMPRESAS[name] === -1){
+      return dark ? {bg:"rgba(236,232,221,0.14)", fg:"#ECE8DD"} : {bg:"rgba(30,36,32,0.08)", fg:"#1E2420"};
+    }
+    var hue = (name in KNOWN_EMPRESAS) ? KNOWN_EMPRESAS[name] : hashHue(name);
+    var s = dark ? 38 : 46;
+    var lBg = dark ? 22 : 89;
+    var lFg = dark ? 82 : 28;
+    return { bg:"hsl("+hue+","+s+"%,"+lBg+"%)", fg:"hsl("+hue+","+s+"%,"+lFg+"%)" };
+  }
+  function fmtDate(iso){
+    if(!iso) return "";
+    var d = new Date(iso + "T00:00:00");
+    if(isNaN(d.getTime())) return iso;
+    return String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0");
+  }
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  }
+
+  var loginWrap = document.getElementById("login-wrap");
+  var appEl = document.getElementById("app");
+  var loginForm = document.getElementById("login-form");
+  var loginError = document.getElementById("login-error");
+  var whoEl = document.getElementById("who");
+  var boardEl = document.getElementById("board");
+  var filtersEl = document.getElementById("filters");
+  var backdrop = document.getElementById("backdrop");
+  var form = document.getElementById("card-form");
+  var fTitulo = document.getElementById("f-titulo");
+  var fEmpresa = document.getElementById("f-empresa");
+  var fEstado = document.getElementById("f-estado");
+  var fPaso = document.getElementById("f-paso");
+  var empresaList = document.getElementById("empresa-list");
+  var deleteZone = document.getElementById("delete-zone");
+  var statusBanner = document.getElementById("status-banner");
+
+  ESTADOS.forEach(function(e){
+    var opt = document.createElement("option");
+    opt.value = e.key; opt.textContent = e.label;
+    fEstado.appendChild(opt);
+  });
+
+  var allCards = [];
+  var activeFilter = "__all__";
+  var editingId = null;
+
+  function showBanner(msg){ statusBanner.hidden = false; statusBanner.textContent = msg; }
+
+  function renderFilters(){
+    var names = {};
+    Object.keys(KNOWN_EMPRESAS).forEach(function(n){ names[n]=true; });
+    allCards.forEach(function(c){ if(c.empresa) names[c.empresa]=true; });
+    var list = Object.keys(names).sort();
+
+    filtersEl.innerHTML = '<span class="lbl">Empresa</span>';
+    var allChip = document.createElement("button");
+    allChip.className = "chip"; allChip.type = "button"; allChip.textContent = "Todas";
+    allChip.setAttribute("aria-pressed", activeFilter === "__all__" ? "true":"false");
+    allChip.addEventListener("click", function(){ activeFilter = "__all__"; render(); });
+    filtersEl.appendChild(allChip);
+
+    list.forEach(function(name){
+      var col = empresaColors(name);
+      var chip = document.createElement("button");
+      chip.className = "chip"; chip.type = "button";
+      chip.setAttribute("aria-pressed", activeFilter === name ? "true":"false");
+      var dot = document.createElement("span"); dot.className = "dot"; dot.style.background = col.fg;
+      chip.appendChild(dot); chip.appendChild(document.createTextNode(name));
+      chip.addEventListener("click", function(){ activeFilter = (activeFilter===name) ? "__all__" : name; render(); });
+      filtersEl.appendChild(chip);
+    });
+
+    empresaList.innerHTML = "";
+    list.forEach(function(name){
+      var opt = document.createElement("option"); opt.value = name; empresaList.appendChild(opt);
+    });
+  }
+
+  function cardEl(card){
+    var wrap = document.createElement("div");
+    wrap.className = "card"; wrap.tabIndex = 0; wrap.setAttribute("role","button");
+    wrap.setAttribute("aria-label", "Editar: " + card.titulo);
+
+    var col = empresaColors(card.empresa || "Sin empresa");
+    var tag = document.createElement("span");
+    tag.className = "tag"; tag.textContent = card.empresa || "Sin empresa";
+    tag.style.background = col.bg; tag.style.color = col.fg;
+    wrap.appendChild(tag);
+
+    var h3 = document.createElement("h3"); h3.textContent = card.titulo || "(sin título)";
+    wrap.appendChild(h3);
+
+    if(card.proximo_paso){
+      var p = document.createElement("p"); p.textContent = card.proximo_paso;
+      wrap.appendChild(p);
+    }
+
+    var foot = document.createElement("div"); foot.className = "card-foot";
+    var date = document.createElement("span"); date.className = "date mono";
+    date.textContent = card.actualizado ? ("act. " + fmtDate(card.actualizado)) : "";
+    foot.appendChild(date);
+
+    var moveWrap = document.createElement("span"); moveWrap.className = "movebtns";
+    var idx = ESTADO_KEYS.indexOf(card.estado);
+
+    var prevBtn = document.createElement("button");
+    prevBtn.className = "movebtn"; prevBtn.type="button"; prevBtn.textContent = "‹";
+    prevBtn.disabled = idx<=0;
+    prevBtn.addEventListener("click", function(ev){ ev.stopPropagation(); moveCard(card, -1); });
+    moveWrap.appendChild(prevBtn);
+
+    var nextBtn = document.createElement("button");
+    nextBtn.className = "movebtn"; nextBtn.type="button"; nextBtn.textContent = "›";
+    nextBtn.disabled = idx<0 || idx>=ESTADOS.length-1;
+    nextBtn.addEventListener("click", function(ev){ ev.stopPropagation(); moveCard(card, 1); });
+    moveWrap.appendChild(nextBtn);
+
+    foot.appendChild(moveWrap);
+    wrap.appendChild(foot);
+
+    wrap.addEventListener("click", function(){ openEdit(card); });
+    wrap.addEventListener("keydown", function(ev){ if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); openEdit(card); } });
+    return wrap;
+  }
+
+  function render(){
+    renderFilters();
+    boardEl.innerHTML = "";
+    var visible = allCards.filter(function(c){ return activeFilter === "__all__" || c.empresa === activeFilter; });
+
+    ESTADOS.forEach(function(estado){
+      var colEl = document.createElement("div"); colEl.className = "column";
+      var head = document.createElement("div"); head.className = "column-head";
+      head.style.setProperty("--st-color", "var(" + estado.cssVar + ")");
+      var nameEl = document.createElement("span"); nameEl.className = "name"; nameEl.textContent = estado.label;
+      var inColumn = visible.filter(function(c){ return c.estado === estado.key; });
+      var countEl = document.createElement("span"); countEl.className = "count mono"; countEl.textContent = inColumn.length;
+      head.appendChild(nameEl); head.appendChild(countEl);
+      colEl.appendChild(head);
+
+      var cardsEl = document.createElement("div"); cardsEl.className = "cards";
+      if(inColumn.length === 0){
+        var hint = document.createElement("div"); hint.className = "empty-hint"; hint.textContent = "Sin tareas aquí";
+        cardsEl.appendChild(hint);
+      } else {
+        inColumn.sort(function(a,b){ return (b.actualizado||"").localeCompare(a.actualizado||""); })
+          .forEach(function(c){ cardsEl.appendChild(cardEl(c)); });
+      }
+      colEl.appendChild(cardsEl);
+      boardEl.appendChild(colEl);
+    });
+  }
+
+  function moveCard(card, dir){
+    var idx = ESTADO_KEYS.indexOf(card.estado);
+    var next = idx + dir;
+    if(next < 0 || next >= ESTADOS.length) return;
+    supabase.from("cards").update({estado: ESTADO_KEYS[next], actualizado: todayISO()}).eq("id", card.id)
+      .then(function(res){ if(res.error) showBanner("No se pudo mover la tarjeta: " + res.error.message); });
+  }
+
+  function openEdit(card){
+    editingId = card.id;
+    document.getElementById("modal-title").textContent = "Editar tarea";
+    fTitulo.value = card.titulo || "";
+    fEmpresa.value = card.empresa || "";
+    fEstado.value = card.estado || "pendiente";
+    fPaso.value = card.proximo_paso || "";
+    deleteZone.innerHTML = "";
+    var delBtn = document.createElement("button");
+    delBtn.type = "button"; delBtn.className = "btn btn-danger"; delBtn.textContent = "Eliminar";
+    var confirmState = false;
+    delBtn.addEventListener("click", function(){
+      if(!confirmState){ confirmState = true; delBtn.textContent = "¿Seguro? Confirmar"; return; }
+      supabase.from("cards").delete().eq("id", card.id).then(function(res){
+        if(res.error) showBanner("No se pudo eliminar: " + res.error.message);
+      });
+      closeModal();
+    });
+    deleteZone.appendChild(delBtn);
+    backdrop.hidden = false;
+    fTitulo.focus();
+  }
+
+  function openCreate(){
+    editingId = null;
+    document.getElementById("modal-title").textContent = "Nueva tarea";
+    fTitulo.value = ""; fEmpresa.value = ""; fEstado.value = "pendiente"; fPaso.value = "";
+    deleteZone.innerHTML = "";
+    backdrop.hidden = false;
+    fTitulo.focus();
+  }
+
+  function closeModal(){ backdrop.hidden = true; editingId = null; }
+
+  document.getElementById("btn-new").addEventListener("click", openCreate);
+  document.getElementById("btn-cancel").addEventListener("click", closeModal);
+  backdrop.addEventListener("click", function(ev){ if(ev.target === backdrop) closeModal(); });
+  document.addEventListener("keydown", function(ev){ if(ev.key === "Escape" && !backdrop.hidden) closeModal(); });
+
+  form.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var payload = {
+      titulo: fTitulo.value.trim(),
+      empresa: fEmpresa.value.trim(),
+      estado: fEstado.value,
+      proximo_paso: fPaso.value.trim(),
+      actualizado: todayISO()
+    };
+    if(!payload.titulo || !payload.empresa) return;
+
+    var task = editingId
+      ? supabase.from("cards").update(payload).eq("id", editingId)
+      : supabase.from("cards").insert(payload);
+
+    task.then(function(res){
+      if(res.error){ showBanner("No se pudo guardar: " + res.error.message); return; }
+      closeModal();
+    });
+  });
+
+  if(window.matchMedia){ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render); }
+
+  var realtimeChannel = null;
+  function loadCards(){
+    supabase.from("cards").select("*").then(function(res){
+      if(res.error){ showBanner("No se pudieron cargar las tarjetas: " + res.error.message); return; }
+      allCards = res.data || [];
+      render();
+    });
+    if(realtimeChannel) supabase.removeChannel(realtimeChannel);
+    realtimeChannel = supabase.channel("cards-changes")
+      .on("postgres_changes", {event:"*", schema:"public", table:"cards"}, function(){ loadCards(); })
+      .subscribe();
+  }
+
+  function showApp(session){
+    loginWrap.hidden = true;
+    appEl.hidden = false;
+    whoEl.textContent = session.user.email;
+    loadCards();
+  }
+  function showLogin(){
+    appEl.hidden = true;
+    loginWrap.hidden = false;
+  }
+
+  loginForm.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    loginError.textContent = "";
+    var email = document.getElementById("l-email").value.trim();
+    var pass = document.getElementById("l-pass").value;
+    supabase.auth.signInWithPassword({email:email, password:pass}).then(function(res){
+      if(res.error){ loginError.textContent = "No se pudo entrar: " + res.error.message; return; }
+    });
+  });
+
+  document.getElementById("btn-logout").addEventListener("click", function(){
+    supabase.auth.signOut();
+  });
+
+  supabase.auth.onAuthStateChange(function(event, session){
+    if(session){ showApp(session); } else { showLogin(); }
+  });
+
+  supabase.auth.getSession().then(function(res){
+    if(res.data && res.data.session){ showApp(res.data.session); } else { showLogin(); }
+  });
+})();
+</script>
+</body>
+</html>
