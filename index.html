@@ -192,6 +192,7 @@
     </div>
     <div class="nameplate-right">
       <span class="sub mono" id="who"></span>
+      <button class="btn btn-ghost btn-header" id="btn-setpass">Contraseña</button>
       <button class="btn btn-ghost btn-header" id="btn-logout">Salir</button>
       <button class="btn btn-primary btn-header" id="btn-new">+ Nueva tarea</button>
     </div>
@@ -232,6 +233,31 @@
         <div class="right">
           <button type="button" class="btn btn-plain" id="btn-cancel">Cancelar</button>
           <button type="submit" class="btn btn-primary" id="btn-save">Guardar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="backdrop" id="backdrop-pass" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="pass-modal-title">
+    <h2 id="pass-modal-title">Configura tu contraseña</h2>
+    <div class="sub" style="margin-bottom:12px;">Así solo tú podrás entrar en el panel con tu email y esta contraseña, sin depender de enlaces por correo.</div>
+    <form id="pass-form">
+      <div class="field">
+        <label for="p-new">Nueva contraseña</label>
+        <input id="p-new" type="password" required minlength="8" autocomplete="new-password">
+      </div>
+      <div class="field">
+        <label for="p-confirm">Repite la contraseña</label>
+        <input id="p-confirm" type="password" required minlength="8" autocomplete="new-password">
+      </div>
+      <div class="login-error" id="pass-error"></div>
+      <div class="modal-actions">
+        <div></div>
+        <div class="right">
+          <button type="button" class="btn btn-plain" id="btn-pass-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar contraseña</button>
         </div>
       </div>
     </form>
@@ -304,6 +330,9 @@
   var boardEl = document.getElementById("board");
   var filtersEl = document.getElementById("filters");
   var backdrop = document.getElementById("backdrop");
+  var backdropPass = document.getElementById("backdrop-pass");
+  var passForm = document.getElementById("pass-form");
+  var passError = document.getElementById("pass-error");
   var form = document.getElementById("card-form");
   var fTitulo = document.getElementById("f-titulo");
   var fEmpresa = document.getElementById("f-empresa");
@@ -538,8 +567,54 @@
     supabase.auth.signOut();
   });
 
+  function openSetPassword(){
+    passError.textContent = "";
+    passForm.reset();
+    backdropPass.hidden = false;
+  }
+  function closeSetPassword(){
+    backdropPass.hidden = true;
+  }
+  document.getElementById("btn-setpass").addEventListener("click", openSetPassword);
+  document.getElementById("btn-pass-cancel").addEventListener("click", closeSetPassword);
+
+  passForm.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    passError.textContent = "";
+    var p1 = document.getElementById("p-new").value;
+    var p2 = document.getElementById("p-confirm").value;
+    if(p1.length < 8){ passError.textContent = "La contraseña debe tener al menos 8 caracteres."; return; }
+    if(p1 !== p2){ passError.textContent = "Las contraseñas no coinciden."; return; }
+    supabase.auth.updateUser({password:p1}).then(function(res){
+      if(res.error){ passError.textContent = "No se pudo guardar: " + res.error.message; return; }
+      closeSetPassword();
+      showBanner("Contraseña guardada. A partir de ahora entra con tu email y esta contraseña.");
+    });
+  });
+
+  // Si se ha entrado mediante un enlace de invitación o de recuperación
+  // (en vez de con email+contraseña), pedimos crear una contraseña propia
+  // y limpiamos el token de la URL para no dejarlo expuesto.
+  var initialHash = window.location.hash || "";
+  var cameFromEmailLink = /type=invite/.test(initialHash) || /type=recovery/.test(initialHash) || /type=signup/.test(initialHash) || /access_token=/.test(initialHash);
+  var passwordPromptShown = false;
+
   supabase.auth.onAuthStateChange(function(event, session){
-    if(session){ showApp(session); } else { showLogin(); }
+    if(session){
+      showApp(session);
+      if((event === "PASSWORD_RECOVERY" || cameFromEmailLink) && !passwordPromptShown){
+        passwordPromptShown = true;
+        openSetPassword();
+      }
+      if(cameFromEmailLink){
+        cameFromEmailLink = false;
+        if(window.history && window.history.replaceState){
+          window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        }
+      }
+    } else {
+      showLogin();
+    }
   });
 
   supabase.auth.getSession().then(function(res){
