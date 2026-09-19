@@ -192,6 +192,57 @@
   .note-form button{white-space:nowrap; flex-shrink:0; width:auto;}
   .card-note-preview{margin-top:6px; font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical;}
   .card-note-preview .badge{font-family:"IBM Plex Mono",monospace; font-size:10px; background:rgba(42,171,238,0.16); color:#2AABEE; border-radius:5px; padding:1px 5px; margin-right:5px;}
+
+  /* ---------- vistas / tabs ---------- */
+  .view-tabs{display:flex; align-items:center; gap:8px; padding:14px 0 0; flex-wrap:wrap;}
+  .tab-btn{
+    font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-size:13.5px;
+    border:1px solid var(--line); border-radius:7px; padding:8px 14px; cursor:pointer;
+    background:var(--paper-raised); color:var(--ink);
+  }
+  .tab-btn[aria-pressed="true"]{border-color:var(--copper); background:color-mix(in srgb, var(--copper) 16%, var(--paper-raised));}
+
+  /* ---------- calendario ---------- */
+  .cal-toolbar{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:14px 0 10px;}
+  .cal-toolbar .range{font-family:"IBM Plex Mono",monospace; font-size:13px; color:var(--muted);}
+  .cal-grid{display:grid; gap:8px; overflow-x:auto; padding-bottom:8px;}
+  .cal-head-cell, .cal-day-cell{background:var(--paper-raised); border:1px solid var(--line); border-radius:9px; padding:8px; min-width:170px;}
+  .cal-head-cell{
+    font-family:"Big Shoulders",sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:0.02em;
+    font-size:14px; text-align:center; border-bottom:3px solid var(--tec-color, var(--copper));
+    display:flex; flex-direction:column; align-items:center; gap:2px;
+  }
+  .cal-head-cell .tec-sub{font-family:"IBM Plex Mono",monospace; font-size:10.5px; color:var(--muted); text-transform:none; letter-spacing:0;}
+  .cal-day-label{
+    font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted); text-transform:uppercase;
+    padding:8px 4px; display:flex; align-items:center; letter-spacing:0.04em;
+  }
+  .cal-day-label.is-today{color:var(--copper); font-weight:700;}
+  .cal-cell{min-height:54px; display:flex; flex-direction:column; gap:6px;}
+  .cal-cell.drag-over{outline:2px dashed var(--copper); outline-offset:-2px;}
+  .cal-card{background:var(--paper); border:1px solid var(--line); border-radius:7px; padding:6px 8px; font-size:12px; cursor:grab; box-shadow:var(--shadow);}
+  .cal-card:hover{border-color:var(--copper);}
+  .cal-card .tag{display:block; font-family:"IBM Plex Mono",monospace; font-size:9.5px; font-weight:600; margin-bottom:2px;}
+  .cal-card .ttl{font-weight:600; line-height:1.25;}
+  .cal-pool{margin-top:16px; padding-top:12px; border-top:1px solid var(--line);}
+  .cal-pool h3{font-family:"Big Shoulders",sans-serif; text-transform:uppercase; font-weight:800; font-size:15px; margin:0 0 10px;}
+  .cal-pool-list{display:flex; flex-wrap:wrap; gap:8px; min-height:40px;}
+  .cal-pool-list.drag-over{outline:2px dashed var(--copper); outline-offset:-2px; border-radius:9px;}
+  .cal-pool-list .cal-card{width:220px;}
+  .cal-empty{font-size:12px; color:var(--muted); padding:6px 2px;}
+
+  /* ---------- tecnicos ---------- */
+  .tec-row{display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line);}
+  .tec-row:last-child{border-bottom:none;}
+  .tec-dot{width:14px; height:14px; border-radius:50%; flex-shrink:0;}
+  .tec-info{flex:1; min-width:0;}
+  .tec-name{font-weight:600; font-size:14px;}
+  .tec-meta{font-size:11.5px; color:var(--muted); font-family:"IBM Plex Mono",monospace;}
+  .tec-actions{display:flex; gap:6px;}
+  .card-tec-chip{display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--muted); font-family:"IBM Plex Mono",monospace; margin-top:6px;}
+  .card-tec-chip .dot{width:8px; height:8px; border-radius:50%; flex-shrink:0;}
+  .map-link{font-size:11px; color:var(--teal); text-decoration:none; font-family:"IBM Plex Mono",monospace; display:inline-block; margin-top:4px;}
+  .map-link:hover{text-decoration:underline;}
 </style>
 </head>
 <body>
@@ -223,19 +274,43 @@
     </div>
     <div class="nameplate-right">
       <span class="sub mono" id="who"></span>
+      <button class="btn btn-ghost btn-header" id="btn-tecnicos" hidden>Técnicos</button>
       <button class="btn btn-ghost btn-header" id="btn-setpass">Contraseña</button>
       <button class="btn btn-ghost btn-header" id="btn-logout">Salir</button>
       <button class="btn btn-primary btn-header" id="btn-new">+ Nueva tarea</button>
     </div>
   </div>
 
-  <div class="filters" id="filters">
-    <span class="lbl">Empresa</span>
+  <div class="archived-note" id="telegram-hint" hidden></div>
+
+  <div class="view-tabs" id="view-tabs">
+    <button class="tab-btn" type="button" id="tab-tablero" aria-pressed="true">Tablero</button>
+    <button class="tab-btn" type="button" id="tab-calendario" aria-pressed="false">Calendario</button>
   </div>
 
   <div id="status-banner" class="status-banner" hidden></div>
 
-  <div class="board" id="board"></div>
+  <div id="tablero-view">
+    <div class="filters" id="filters">
+      <span class="lbl">Empresa</span>
+    </div>
+
+    <div class="board" id="board"></div>
+  </div>
+
+  <div id="calendario-view" hidden>
+    <div class="cal-toolbar">
+      <button class="btn btn-plain" type="button" id="cal-prev">‹ Semana anterior</button>
+      <span class="range mono" id="cal-range"></span>
+      <button class="btn btn-plain" type="button" id="cal-today">Hoy</button>
+      <button class="btn btn-plain" type="button" id="cal-next">Semana siguiente ›</button>
+    </div>
+    <div class="cal-grid" id="cal-grid"></div>
+    <div class="cal-pool">
+      <h3>Sin programar</h3>
+      <div class="cal-pool-list" id="cal-pool-list"></div>
+    </div>
+  </div>
 </div>
 
 <div class="backdrop" id="backdrop" hidden>
@@ -259,6 +334,19 @@
       <div class="field">
         <label for="f-paso">Próximo paso</label>
         <textarea id="f-paso" maxlength="400" placeholder="¿Qué hay que hacer o esperar a continuación?"></textarea>
+      </div>
+      <div class="field">
+        <label for="f-tecnico">Técnico asignado</label>
+        <select id="f-tecnico"></select>
+      </div>
+      <div class="field">
+        <label for="f-fecha">Fecha programada</label>
+        <input id="f-fecha" type="date">
+      </div>
+      <div class="field">
+        <label for="f-direccion">Dirección</label>
+        <input id="f-direccion" maxlength="200" placeholder="Ej: Calle Mayor 12, Madrid">
+        <a href="#" id="f-direccion-map" class="map-link" target="_blank" rel="noopener" hidden>📍 Ver en Google Maps</a>
       </div>
       <div class="modal-actions">
         <div id="delete-zone"></div>
@@ -302,6 +390,38 @@
         </div>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="backdrop" id="backdrop-tecnicos" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="tecnicos-modal-title">
+    <h2 id="tecnicos-modal-title">Técnicos</h2>
+    <div id="tecnicos-list"></div>
+    <div class="notes-section">
+      <h3>Invitar a un técnico nuevo</h3>
+      <form id="tecnico-form">
+        <div class="field">
+          <label for="tec-nombre">Nombre</label>
+          <input id="tec-nombre" required maxlength="60" placeholder="Ej: Juan Pérez">
+        </div>
+        <div class="field">
+          <label for="tec-email">Email</label>
+          <input id="tec-email" type="email" required placeholder="tecnico@ejemplo.com">
+        </div>
+        <div class="field">
+          <label for="tec-color">Color</label>
+          <input id="tec-color" type="color" value="#2C5753">
+        </div>
+        <div class="login-error" id="tecnico-error"></div>
+        <div class="modal-actions">
+          <div></div>
+          <div class="right">
+            <button type="button" class="btn btn-plain" id="btn-tecnicos-close">Cerrar</button>
+            <button type="submit" class="btn btn-primary">Invitar</button>
+          </div>
+        </div>
+      </form>
+    </div>
   </div>
 </div>
 
@@ -388,6 +508,30 @@
   var notesList = document.getElementById("notes-list");
   var noteForm = document.getElementById("note-form");
   var noteBody = document.getElementById("note-body");
+  var fTecnico = document.getElementById("f-tecnico");
+  var fFecha = document.getElementById("f-fecha");
+  var fDireccion = document.getElementById("f-direccion");
+  var fDireccionMap = document.getElementById("f-direccion-map");
+  var btnTecnicos = document.getElementById("btn-tecnicos");
+  var backdropTecnicos = document.getElementById("backdrop-tecnicos");
+  var tecnicosList = document.getElementById("tecnicos-list");
+  var tecnicoForm = document.getElementById("tecnico-form");
+  var tecNombre = document.getElementById("tec-nombre");
+  var tecEmail = document.getElementById("tec-email");
+  var tecColor = document.getElementById("tec-color");
+  var tecnicoError = document.getElementById("tecnico-error");
+  var btnTecnicosClose = document.getElementById("btn-tecnicos-close");
+  var telegramHint = document.getElementById("telegram-hint");
+  var tabTablero = document.getElementById("tab-tablero");
+  var tabCalendario = document.getElementById("tab-calendario");
+  var tableroView = document.getElementById("tablero-view");
+  var calendarioView = document.getElementById("calendario-view");
+  var calGrid = document.getElementById("cal-grid");
+  var calRangeEl = document.getElementById("cal-range");
+  var calPoolList = document.getElementById("cal-pool-list");
+  var calPrevBtn = document.getElementById("cal-prev");
+  var calNextBtn = document.getElementById("cal-next");
+  var calTodayBtn = document.getElementById("cal-today");
 
   ESTADOS.forEach(function(e){
     var opt = document.createElement("option");
@@ -400,6 +544,27 @@
   var activeFilter = "__all__";
   var showArchived = false;
   var editingId = null;
+  var tecnicos = [];
+  var meId = null;
+  var meTecnico = null;
+  var currentView = "tablero";
+
+  function mondayOf(d){
+    var date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var day = date.getDay();
+    var diff = (day === 0 ? -6 : 1 - day);
+    date.setDate(date.getDate() + diff);
+    return date;
+  }
+  function addDays(date, n){
+    var d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    d.setDate(d.getDate() + n);
+    return d;
+  }
+  function isoOfDate(d){
+    return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0");
+  }
+  var calWeekStart = mondayOf(new Date());
 
   function showBanner(msg){ statusBanner.hidden = false; statusBanner.textContent = msg; }
 
@@ -454,6 +619,257 @@
       .then(function(res){ if(res.error) showBanner("No se pudo archivar: " + res.error.message); });
   }
 
+  function maybeNotify(tecnicoId, cardTitulo, fecha){
+    if(!tecnicoId) return;
+    var tec = tecnicos.find(function(t){ return t.id === tecnicoId; });
+    if(!tec) return;
+    var texto = "Nueva asignación: \"" + cardTitulo + "\"" + (fecha ? (" para el " + fmtDate(fecha)) : "") + ".";
+    supabase.functions.invoke("notify-tecnico", { body: { tecnico_id: tecnicoId, texto: texto } })
+      .catch(function(){ /* si falla el aviso no bloqueamos el resto de la app */ });
+  }
+
+  function renderTecnicoSelect(){
+    var prev = fTecnico.value;
+    fTecnico.innerHTML = "";
+    var optNone = document.createElement("option"); optNone.value = ""; optNone.textContent = "Sin asignar";
+    fTecnico.appendChild(optNone);
+    tecnicos.filter(function(t){ return t.activo; }).forEach(function(t){
+      var opt = document.createElement("option"); opt.value = t.id; opt.textContent = t.nombre;
+      fTecnico.appendChild(opt);
+    });
+    fTecnico.value = prev || "";
+  }
+
+  function updateTelegramHint(){
+    if(meTecnico && !meTecnico.telegram_chat_id){
+      telegramHint.hidden = false;
+      telegramHint.textContent = "📲 Vincula tu Telegram: envíale \"/vincular " + (meTecnico.vinculo_code || "") + "\" a @disproyec_panel_bot para recibir avisos de tareas.";
+    } else {
+      telegramHint.hidden = true;
+    }
+  }
+
+  function applyRoleUI(){
+    var isAdmin = !!(meTecnico && meTecnico.rol === "admin");
+    btnTecnicos.hidden = !isAdmin;
+    updateTelegramHint();
+  }
+
+  function renderTecnicosModalList(){
+    tecnicosList.innerHTML = "";
+    if(tecnicos.length === 0){
+      var empty = document.createElement("div"); empty.className = "notes-empty"; empty.textContent = "Todavía no hay técnicos.";
+      tecnicosList.appendChild(empty);
+      return;
+    }
+    tecnicos.forEach(function(t){
+      var row = document.createElement("div"); row.className = "tec-row";
+      var dot = document.createElement("span"); dot.className = "tec-dot"; dot.style.background = t.color;
+      row.appendChild(dot);
+      var info = document.createElement("div"); info.className = "tec-info";
+      var name = document.createElement("div"); name.className = "tec-name";
+      name.textContent = t.nombre + (t.rol === "admin" ? " (admin)" : "") + (!t.activo ? " — inactivo" : "");
+      var meta = document.createElement("div"); meta.className = "tec-meta";
+      meta.textContent = t.telegram_chat_id ? "Telegram vinculado" : ("Sin vincular · código: " + (t.vinculo_code || "—"));
+      info.appendChild(name); info.appendChild(meta);
+      row.appendChild(info);
+      if(meTecnico && meTecnico.rol === "admin" && t.id !== meTecnico.id){
+        var actions = document.createElement("div"); actions.className = "tec-actions";
+        var toggleBtn = document.createElement("button");
+        toggleBtn.type = "button"; toggleBtn.className = "btn btn-plain"; toggleBtn.textContent = t.activo ? "Desactivar" : "Activar";
+        toggleBtn.addEventListener("click", function(){
+          supabase.from("tecnicos").update({activo: !t.activo}).eq("id", t.id).then(function(res){
+            if(res.error) showBanner("No se pudo actualizar: " + res.error.message);
+          });
+        });
+        actions.appendChild(toggleBtn);
+        row.appendChild(actions);
+      }
+      tecnicosList.appendChild(row);
+    });
+  }
+
+  function fmtRange(start, end){
+    return fmtDate(isoOfDate(start)) + " – " + fmtDate(isoOfDate(end));
+  }
+
+  function calCardEl(card){
+    var el = document.createElement("div"); el.className = "cal-card"; el.draggable = true;
+    el.dataset.cardId = card.id;
+    var col = empresaColors(card.empresa || "Sin empresa");
+    var tag = document.createElement("span"); tag.className = "tag"; tag.textContent = card.empresa || "Sin empresa"; tag.style.color = col.fg;
+    el.appendChild(tag);
+    var ttl = document.createElement("div"); ttl.className = "ttl"; ttl.textContent = card.titulo || "(sin título)";
+    el.appendChild(ttl);
+    el.addEventListener("click", function(){ openEdit(card); });
+    el.addEventListener("dragstart", function(ev){
+      ev.dataTransfer.setData("text/plain", card.id);
+      ev.dataTransfer.effectAllowed = "move";
+    });
+    return el;
+  }
+
+  function attachCellDnD(cell, isPool){
+    cell.addEventListener("dragover", function(ev){ ev.preventDefault(); cell.classList.add("drag-over"); });
+    cell.addEventListener("dragleave", function(){ cell.classList.remove("drag-over"); });
+    cell.addEventListener("drop", function(ev){
+      ev.preventDefault();
+      cell.classList.remove("drag-over");
+      var cardId = ev.dataTransfer.getData("text/plain");
+      var card = allCards.find(function(c){ return c.id === cardId; });
+      if(!card) return;
+      var newTecnico = isPool ? null : cell.dataset.tecnico;
+      var newFecha = isPool ? null : cell.dataset.fecha;
+      if(card.tecnico_id === newTecnico && card.fecha_programada === newFecha) return;
+      supabase.from("cards").update({tecnico_id: newTecnico, fecha_programada: newFecha, actualizado: todayISO()}).eq("id", card.id)
+        .then(function(res){
+          if(res.error){ showBanner("No se pudo mover: " + res.error.message); return; }
+          if(newTecnico){ maybeNotify(newTecnico, card.titulo, newFecha); }
+        });
+    });
+  }
+
+  var diasSemana = ["Lunes","Martes","Miércoles","Jueves","Viernes","Sábado","Domingo"];
+
+  function renderCalendar(){
+    calGrid.innerHTML = "";
+    var days = [];
+    for(var i=0;i<7;i++){ days.push(addDays(calWeekStart, i)); }
+    calRangeEl.textContent = fmtRange(calWeekStart, days[6]);
+
+    var activeTecnicos = tecnicos.filter(function(t){ return t.activo; });
+    calGrid.style.gridTemplateColumns = "110px repeat(" + Math.max(activeTecnicos.length,1) + ", minmax(170px,1fr))";
+
+    var corner = document.createElement("div");
+    calGrid.appendChild(corner);
+
+    if(activeTecnicos.length === 0){
+      var noTec = document.createElement("div"); noTec.className = "cal-empty"; noTec.textContent = "Todavía no hay técnicos activos.";
+      calGrid.appendChild(noTec);
+    } else {
+      activeTecnicos.forEach(function(t){
+        var head = document.createElement("div"); head.className = "cal-head-cell";
+        head.style.setProperty("--tec-color", t.color);
+        head.textContent = t.nombre;
+        var sub = document.createElement("span"); sub.className = "tec-sub";
+        sub.textContent = t.telegram_chat_id ? "Telegram ok" : "sin vincular";
+        head.appendChild(sub);
+        calGrid.appendChild(head);
+      });
+    }
+
+    var todayIso = todayISO();
+    days.forEach(function(day, di){
+      var iso = isoOfDate(day);
+      var label = document.createElement("div"); label.className = "cal-day-label" + (iso === todayIso ? " is-today" : "");
+      label.textContent = diasSemana[di] + " " + fmtDate(iso);
+      calGrid.appendChild(label);
+
+      if(activeTecnicos.length === 0){
+        calGrid.appendChild(document.createElement("div"));
+        return;
+      }
+      activeTecnicos.forEach(function(t){
+        var cell = document.createElement("div"); cell.className = "cal-cell";
+        cell.dataset.tecnico = t.id; cell.dataset.fecha = iso;
+        var matches = allCards.filter(function(c){ return !c.archivada && c.tecnico_id === t.id && c.fecha_programada === iso; });
+        matches.forEach(function(c){ cell.appendChild(calCardEl(c)); });
+        attachCellDnD(cell);
+        calGrid.appendChild(cell);
+      });
+    });
+
+    calPoolList.innerHTML = "";
+    var pending = allCards.filter(function(c){ return !c.archivada && (!c.tecnico_id || !c.fecha_programada); });
+    if(pending.length === 0){
+      var emptyPool = document.createElement("div"); emptyPool.className = "cal-empty"; emptyPool.textContent = "No hay tareas sin programar.";
+      calPoolList.appendChild(emptyPool);
+    } else {
+      pending.forEach(function(c){ calPoolList.appendChild(calCardEl(c)); });
+    }
+  }
+
+  function setView(view){
+    currentView = view;
+    tabTablero.setAttribute("aria-pressed", view === "tablero" ? "true" : "false");
+    tabCalendario.setAttribute("aria-pressed", view === "calendario" ? "true" : "false");
+    tableroView.hidden = view !== "tablero";
+    calendarioView.hidden = view !== "calendario";
+    if(view === "calendario") renderCalendar();
+  }
+  tabTablero.addEventListener("click", function(){ setView("tablero"); });
+  tabCalendario.addEventListener("click", function(){ setView("calendario"); });
+  calPrevBtn.addEventListener("click", function(){ calWeekStart = addDays(calWeekStart, -7); renderCalendar(); });
+  calNextBtn.addEventListener("click", function(){ calWeekStart = addDays(calWeekStart, 7); renderCalendar(); });
+  calTodayBtn.addEventListener("click", function(){ calWeekStart = mondayOf(new Date()); renderCalendar(); });
+  attachCellDnD(calPoolList, true);
+
+  btnTecnicos.addEventListener("click", function(){
+    tecnicoError.textContent = "";
+    tecnicoForm.reset();
+    tecColor.value = "#2C5753";
+    renderTecnicosModalList();
+    backdropTecnicos.hidden = false;
+  });
+  btnTecnicosClose.addEventListener("click", function(){ backdropTecnicos.hidden = true; });
+  backdropTecnicos.addEventListener("click", function(ev){ if(ev.target === backdropTecnicos) backdropTecnicos.hidden = true; });
+
+  tecnicoForm.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    tecnicoError.textContent = "";
+    var nombre = tecNombre.value.trim();
+    var email = tecEmail.value.trim();
+    var color = tecColor.value;
+    if(!nombre || !email) return;
+    var submitBtn = tecnicoForm.querySelector("button[type=submit]");
+    submitBtn.disabled = true;
+    supabase.functions.invoke("invite-tecnico", { body: { nombre: nombre, email: email, color: color } })
+      .then(function(res){
+        submitBtn.disabled = false;
+        if(res.error){
+          tecnicoError.textContent = "No se pudo invitar: " + res.error.message;
+          return;
+        }
+        var data = res.data || {};
+        if(data.error){ tecnicoError.textContent = data.error; return; }
+        tecnicoForm.reset();
+        tecColor.value = "#2C5753";
+        showBanner("Invitación enviada a " + email + ". Le llegará un correo para crear su contraseña.");
+      })
+      .catch(function(err){
+        submitBtn.disabled = false;
+        tecnicoError.textContent = "No se pudo invitar: " + (err && err.message ? err.message : err);
+      });
+  });
+
+  fDireccion.addEventListener("input", function(){
+    var val = fDireccion.value.trim();
+    if(val){
+      fDireccionMap.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(val);
+      fDireccionMap.hidden = false;
+    } else {
+      fDireccionMap.hidden = true;
+    }
+  });
+
+  var tecnicosRealtimeChannel = null;
+  function loadTecnicos(){
+    supabase.from("tecnicos").select("*").order("nombre").then(function(res){
+      if(res.error){ showBanner("No se pudieron cargar los técnicos: " + res.error.message); return; }
+      tecnicos = res.data || [];
+      meTecnico = tecnicos.find(function(t){ return t.id === meId; }) || null;
+      applyRoleUI();
+      renderTecnicoSelect();
+      render();
+      if(currentView === "calendario") renderCalendar();
+      renderTecnicosModalList();
+    });
+    if(tecnicosRealtimeChannel) supabase.removeChannel(tecnicosRealtimeChannel);
+    tecnicosRealtimeChannel = supabase.channel("tecnicos-changes")
+      .on("postgres_changes", {event:"*", schema:"public", table:"tecnicos"}, function(){ loadTecnicos(); })
+      .subscribe();
+  }
+
   function cardEl(card){
     var wrap = document.createElement("div");
     wrap.className = "card" + (card.archivada ? " is-archived" : ""); wrap.tabIndex = 0; wrap.setAttribute("role","button");
@@ -482,6 +898,25 @@
       }
       notePrev.appendChild(document.createTextNode(notesForCard[0].body));
       wrap.appendChild(notePrev);
+    }
+
+    if(card.tecnico_id){
+      var assignedTec = tecnicos.find(function(t){ return t.id === card.tecnico_id; });
+      if(assignedTec){
+        var tecChip = document.createElement("div"); tecChip.className = "card-tec-chip";
+        var tecDot = document.createElement("span"); tecDot.className = "dot"; tecDot.style.background = assignedTec.color;
+        tecChip.appendChild(tecDot);
+        var tecLabel = assignedTec.nombre + (card.fecha_programada ? (" · " + fmtDate(card.fecha_programada)) : "");
+        tecChip.appendChild(document.createTextNode(tecLabel));
+        wrap.appendChild(tecChip);
+      }
+    }
+    if(card.direccion){
+      var mapLink = document.createElement("a"); mapLink.className = "map-link";
+      mapLink.href = "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(card.direccion);
+      mapLink.target = "_blank"; mapLink.rel = "noopener"; mapLink.textContent = "📍 Mapa";
+      mapLink.addEventListener("click", function(ev){ ev.stopPropagation(); });
+      wrap.appendChild(mapLink);
     }
 
     var foot = document.createElement("div"); foot.className = "card-foot";
@@ -633,6 +1068,10 @@
     fEmpresa.value = card.empresa || "";
     fEstado.value = card.estado || "pendiente";
     fPaso.value = card.proximo_paso || "";
+    fTecnico.value = card.tecnico_id || "";
+    fFecha.value = card.fecha_programada || "";
+    fDireccion.value = card.direccion || "";
+    fDireccion.dispatchEvent(new Event("input"));
     archivedNote.hidden = !card.archivada;
     deleteZone.innerHTML = "";
     var archToggleBtn = document.createElement("button");
@@ -670,6 +1109,8 @@
     editingId = null;
     document.getElementById("modal-title").textContent = "Nueva tarea";
     fTitulo.value = ""; fEmpresa.value = ""; fEstado.value = "pendiente"; fPaso.value = "";
+    fTecnico.value = ""; fFecha.value = ""; fDireccion.value = "";
+    fDireccion.dispatchEvent(new Event("input"));
     archivedNote.hidden = true;
     deleteZone.innerHTML = "";
     cardModalEl.classList.remove("modal-lg");
@@ -687,11 +1128,15 @@
 
   form.addEventListener("submit", function(ev){
     ev.preventDefault();
+    var prevCard = editingId ? allCards.find(function(c){ return c.id === editingId; }) : null;
     var payload = {
       titulo: fTitulo.value.trim(),
       empresa: fEmpresa.value.trim(),
       estado: fEstado.value,
       proximo_paso: fPaso.value.trim(),
+      tecnico_id: fTecnico.value || null,
+      fecha_programada: fFecha.value || null,
+      direccion: fDireccion.value.trim() || null,
       actualizado: todayISO()
     };
     if(!payload.titulo || !payload.empresa) return;
@@ -702,6 +1147,11 @@
 
     task.then(function(res){
       if(res.error){ showBanner("No se pudo guardar: " + res.error.message); return; }
+      var prevTecnico = prevCard ? (prevCard.tecnico_id || null) : null;
+      var prevFecha = prevCard ? (prevCard.fecha_programada || null) : null;
+      if(payload.tecnico_id && (payload.tecnico_id !== prevTecnico || payload.fecha_programada !== prevFecha)){
+        maybeNotify(payload.tecnico_id, payload.titulo, payload.fecha_programada);
+      }
       closeModal();
     });
   });
@@ -715,6 +1165,7 @@
       if(res.error){ showBanner("No se pudieron cargar las tarjetas: " + res.error.message); return; }
       allCards = res.data || [];
       render();
+      if(currentView === "calendario") renderCalendar();
     });
     if(realtimeChannel) supabase.removeChannel(realtimeChannel);
     realtimeChannel = supabase.channel("cards-changes")
@@ -731,6 +1182,8 @@
     loginWrap.hidden = true;
     appEl.hidden = false;
     whoEl.textContent = session.user.email;
+    meId = session.user.id;
+    loadTecnicos();
     loadCards();
   }
   function showLogin(){
