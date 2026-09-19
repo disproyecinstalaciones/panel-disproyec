@@ -183,13 +183,22 @@
   .note-del{border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:15px; line-height:1; padding:0 2px;}
   .note-del:hover{color:var(--ink);}
   .note-body{font-size:13px; white-space:pre-wrap; word-break:break-word;}
+  .note-photo{display:block; max-width:220px; max-height:220px; border-radius:8px; margin-top:6px; border:1px solid var(--line); cursor:zoom-in;}
   .note-form{display:flex; gap:8px; align-items:flex-start;}
+  .note-form-main{flex:1; min-width:0; display:flex; flex-direction:column; gap:6px;}
   .note-form textarea{
     flex:1; min-width:0; min-height:44px; resize:vertical; font-family:inherit; font-size:14px;
     padding:9px 10px; border-radius:7px; border:1px solid var(--line); background:var(--paper); color:var(--ink);
   }
   .note-form textarea:focus{outline:2px solid var(--focus); outline-offset:1px; border-color:var(--focus);}
   .note-form button{white-space:nowrap; flex-shrink:0; width:auto;}
+  .note-form-row{display:flex; align-items:center; gap:8px; flex-wrap:wrap;}
+  .note-photo-btn{
+    font-family:"IBM Plex Sans",sans-serif; font-size:12.5px; font-weight:600; padding:6px 10px;
+    border:1px solid var(--line); border-radius:7px; background:var(--paper); color:var(--ink); cursor:pointer; white-space:nowrap;
+  }
+  .note-photo-btn:hover{border-color:var(--copper);}
+  .note-photo-name{font-size:11.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:160px;}
   .card-note-preview{margin-top:6px; font-size:12px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; display:-webkit-box; -webkit-line-clamp:1; -webkit-box-orient:vertical;}
   .card-note-preview .badge{font-family:"IBM Plex Mono",monospace; font-size:10px; background:rgba(42,171,238,0.16); color:#2AABEE; border-radius:5px; padding:1px 5px; margin-right:5px;}
 
@@ -361,8 +370,15 @@
       <h3>Registro de la instalación</h3>
       <div class="note-list" id="notes-list"></div>
       <form class="note-form" id="note-form">
-        <textarea id="note-body" maxlength="600" required placeholder="Añade una nota: material que falta, replanteo, incidencias... (esto es lo mismo que le llega al bot de Telegram)"></textarea>
-        <button type="submit" class="btn btn-primary">Añadir nota</button>
+        <div class="note-form-main">
+          <textarea id="note-body" maxlength="600" placeholder="Añade una nota: material que falta, replanteo, incidencias... (esto es lo mismo que le llega al bot de Telegram)"></textarea>
+          <div class="note-form-row">
+            <label class="note-photo-btn" for="note-photo">📷 Añadir foto</label>
+            <input id="note-photo" type="file" accept="image/*" capture="environment" hidden>
+            <span class="note-photo-name mono" id="note-photo-name"></span>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-add-note">Añadir nota</button>
       </form>
     </div>
   </div>
@@ -508,6 +524,9 @@
   var notesList = document.getElementById("notes-list");
   var noteForm = document.getElementById("note-form");
   var noteBody = document.getElementById("note-body");
+  var notePhoto = document.getElementById("note-photo");
+  var notePhotoName = document.getElementById("note-photo-name");
+  var btnAddNote = document.getElementById("btn-add-note");
   var fTecnico = document.getElementById("f-tecnico");
   var fFecha = document.getElementById("f-fecha");
   var fDireccion = document.getElementById("f-direccion");
@@ -1030,8 +1049,17 @@
         });
       });
       meta.appendChild(metaLeft); meta.appendChild(delBtn);
-      var body = document.createElement("div"); body.className = "note-body"; body.textContent = n.body;
-      item.appendChild(meta); item.appendChild(body);
+      item.appendChild(meta);
+      if(n.body){
+        var body = document.createElement("div"); body.className = "note-body"; body.textContent = n.body;
+        item.appendChild(body);
+      }
+      if(n.foto_url){
+        var img = document.createElement("img"); img.className = "note-photo"; img.src = n.foto_url;
+        img.alt = "Foto adjunta a la nota"; img.loading = "lazy";
+        img.addEventListener("click", function(){ window.open(n.foto_url, "_blank", "noopener"); });
+        item.appendChild(img);
+      }
       notesList.appendChild(item);
     });
   }
@@ -1049,16 +1077,41 @@
     });
   }
 
+  notePhoto.addEventListener("change", function(){
+    var f = notePhoto.files[0];
+    notePhotoName.textContent = f ? f.name : "";
+  });
+
   noteForm.addEventListener("submit", function(ev){
     ev.preventDefault();
     if(!editingId) return;
     var body = noteBody.value.trim();
-    if(!body) return;
-    supabase.from("card_notes").insert({card_id: editingId, body: body, source: "manual"}).then(function(res){
-      if(res.error){ showBanner("No se pudo guardar la nota: " + res.error.message); return; }
-      noteBody.value = "";
-      loadAllNotes();
-    });
+    var file = notePhoto.files[0];
+    if(!body && !file) return;
+    btnAddNote.disabled = true;
+
+    function saveNote(fotoUrl){
+      supabase.from("card_notes").insert({card_id: editingId, body: body, source: "manual", foto_url: fotoUrl || null}).then(function(res){
+        btnAddNote.disabled = false;
+        if(res.error){ showBanner("No se pudo guardar la nota: " + res.error.message); return; }
+        noteBody.value = "";
+        notePhoto.value = "";
+        notePhotoName.textContent = "";
+        loadAllNotes();
+      });
+    }
+
+    if(file){
+      var ext = (file.name.split(".").pop() || "jpg").toLowerCase().replace(/[^a-z0-9]/g, "") || "jpg";
+      var path = editingId + "/" + Date.now() + "-" + Math.random().toString(36).slice(2,8) + "." + ext;
+      supabase.storage.from("card-photos").upload(path, file, {cacheControl:"3600", upsert:false}).then(function(res){
+        if(res.error){ btnAddNote.disabled = false; showBanner("No se pudo subir la foto: " + res.error.message); return; }
+        var pub = supabase.storage.from("card-photos").getPublicUrl(path);
+        saveNote(pub.data.publicUrl);
+      });
+    } else {
+      saveNote(null);
+    }
   });
 
   function openEdit(card){
@@ -1100,6 +1153,8 @@
     cardModalEl.classList.add("modal-lg");
     notesSection.hidden = false;
     noteBody.value = "";
+    notePhoto.value = "";
+    notePhotoName.textContent = "";
     renderNotesList(card.id);
     backdrop.hidden = false;
     fTitulo.focus();
