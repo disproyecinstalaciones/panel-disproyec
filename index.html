@@ -94,6 +94,8 @@
   .btn-plain{background:var(--paper-raised); border-color:var(--line); color:var(--ink); width:auto;}
   .btn-plain:hover{border-color:var(--copper);}
   .btn-danger{background:transparent; border-color:var(--danger); color:var(--danger); width:auto;}
+  .btn-ok{background:transparent; border-color:var(--ok); color:var(--ok); width:auto;}
+  .btn-ok:hover{background:color-mix(in srgb, var(--ok) 14%, transparent);}
   .btn:focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
   .btn-header{width:auto;}
 
@@ -132,6 +134,7 @@
 
   .card{background:var(--paper-raised); border:1px solid var(--line); border-radius:10px; padding:12px 12px 10px; box-shadow:var(--shadow); cursor:pointer;}
   .card:hover{border-color:var(--copper);}
+  .card.is-archived{opacity:0.68; border-style:dashed;}
   .card .tag{display:inline-block; font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:500; padding:2px 8px; border-radius:999px; margin-bottom:7px;}
   .card h3{margin:0 0 5px; font-size:15px; font-weight:700; line-height:1.25;}
   .card p{margin:0; font-size:13px; line-height:1.42; color:var(--muted); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden;}
@@ -161,6 +164,8 @@
   .field input:focus, .field select:focus, .field textarea:focus{outline:2px solid var(--focus); outline-offset:1px; border-color:var(--focus);}
   .modal-actions{display:flex; justify-content:space-between; align-items:center; margin-top:16px; gap:8px; flex-wrap:wrap;}
   .modal-actions .right{display:flex; gap:8px;}
+  #delete-zone{display:flex; gap:8px; flex-wrap:wrap;}
+  .archived-note{font-size:12.5px; color:var(--muted); margin:0 0 12px; padding:8px 10px; border:1px dashed var(--line); border-radius:8px;}
   .status-banner{font-size:13px; color:var(--muted); padding:10px 0 0;}
 
   /* ---------- registro / notas de la tarjeta ---------- */
@@ -236,6 +241,7 @@
 <div class="backdrop" id="backdrop" hidden>
   <div class="modal" id="card-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <h2 id="modal-title">Nueva tarea</h2>
+    <div class="archived-note" id="archived-note" hidden>📦 Esta tarjeta está archivada: no aparece en el tablero principal.</div>
     <form id="card-form">
       <div class="field">
         <label for="f-titulo">Título</label>
@@ -377,6 +383,7 @@
   var deleteZone = document.getElementById("delete-zone");
   var statusBanner = document.getElementById("status-banner");
   var cardModalEl = document.getElementById("card-modal");
+  var archivedNote = document.getElementById("archived-note");
   var notesSection = document.getElementById("notes-section");
   var notesList = document.getElementById("notes-list");
   var noteForm = document.getElementById("note-form");
@@ -391,6 +398,7 @@
   var allCards = [];
   var allNotesByCard = {};
   var activeFilter = "__all__";
+  var showArchived = false;
   var editingId = null;
 
   function showBanner(msg){ statusBanner.hidden = false; statusBanner.textContent = msg; }
@@ -430,11 +438,25 @@
     list.forEach(function(name){
       var opt = document.createElement("option"); opt.value = name; empresaList.appendChild(opt);
     });
+
+    var archCount = allCards.filter(function(c){ return c.archivada; }).length;
+    var archChip = document.createElement("button");
+    archChip.className = "chip"; archChip.type = "button";
+    archChip.style.marginLeft = "auto";
+    archChip.setAttribute("aria-pressed", showArchived ? "true" : "false");
+    archChip.textContent = showArchived ? "◀ Volver al tablero" : ("📦 Archivadas (" + archCount + ")");
+    archChip.addEventListener("click", function(){ showArchived = !showArchived; render(); });
+    filtersEl.appendChild(archChip);
+  }
+
+  function archiveCard(card, value){
+    supabase.from("cards").update({archivada: value, actualizado: todayISO()}).eq("id", card.id)
+      .then(function(res){ if(res.error) showBanner("No se pudo archivar: " + res.error.message); });
   }
 
   function cardEl(card){
     var wrap = document.createElement("div");
-    wrap.className = "card"; wrap.tabIndex = 0; wrap.setAttribute("role","button");
+    wrap.className = "card" + (card.archivada ? " is-archived" : ""); wrap.tabIndex = 0; wrap.setAttribute("role","button");
     wrap.setAttribute("aria-label", "Editar: " + card.titulo);
 
     var col = empresaColors(card.empresa || "Sin empresa");
@@ -470,17 +492,33 @@
     var moveWrap = document.createElement("span"); moveWrap.className = "movebtns";
     var idx = ESTADO_KEYS.indexOf(card.estado);
 
-    var prevBtn = document.createElement("button");
-    prevBtn.className = "movebtn"; prevBtn.type="button"; prevBtn.textContent = "‹";
-    prevBtn.disabled = idx<=0;
-    prevBtn.addEventListener("click", function(ev){ ev.stopPropagation(); moveCard(card, -1); });
-    moveWrap.appendChild(prevBtn);
+    if(card.archivada){
+      var unarchBtn = document.createElement("button");
+      unarchBtn.className = "movebtn"; unarchBtn.type = "button"; unarchBtn.title = "Desarchivar";
+      unarchBtn.textContent = "↺";
+      unarchBtn.addEventListener("click", function(ev){ ev.stopPropagation(); archiveCard(card, false); });
+      moveWrap.appendChild(unarchBtn);
+    } else {
+      var prevBtn = document.createElement("button");
+      prevBtn.className = "movebtn"; prevBtn.type="button"; prevBtn.textContent = "‹";
+      prevBtn.disabled = idx<=0;
+      prevBtn.addEventListener("click", function(ev){ ev.stopPropagation(); moveCard(card, -1); });
+      moveWrap.appendChild(prevBtn);
 
-    var nextBtn = document.createElement("button");
-    nextBtn.className = "movebtn"; nextBtn.type="button"; nextBtn.textContent = "›";
-    nextBtn.disabled = idx<0 || idx>=ESTADOS.length-1;
-    nextBtn.addEventListener("click", function(ev){ ev.stopPropagation(); moveCard(card, 1); });
-    moveWrap.appendChild(nextBtn);
+      var nextBtn = document.createElement("button");
+      nextBtn.className = "movebtn"; nextBtn.type="button"; nextBtn.textContent = "›";
+      nextBtn.disabled = idx<0 || idx>=ESTADOS.length-1;
+      nextBtn.addEventListener("click", function(ev){ ev.stopPropagation(); moveCard(card, 1); });
+      moveWrap.appendChild(nextBtn);
+
+      if(card.estado === "hecho"){
+        var archBtn = document.createElement("button");
+        archBtn.className = "movebtn"; archBtn.type = "button"; archBtn.title = "Archivar (ya no se verá en el tablero)";
+        archBtn.textContent = "✓";
+        archBtn.addEventListener("click", function(ev){ ev.stopPropagation(); archiveCard(card, true); });
+        moveWrap.appendChild(archBtn);
+      }
+    }
 
     foot.appendChild(moveWrap);
     wrap.appendChild(foot);
@@ -493,7 +531,10 @@
   function render(){
     renderFilters();
     boardEl.innerHTML = "";
-    var visible = allCards.filter(function(c){ return activeFilter === "__all__" || c.empresa === activeFilter; });
+    var visible = allCards.filter(function(c){
+      if(showArchived){ if(!c.archivada) return false; } else if(c.archivada){ return false; }
+      return activeFilter === "__all__" || c.empresa === activeFilter;
+    });
 
     ESTADOS.forEach(function(estado){
       var colEl = document.createElement("div"); colEl.className = "column";
@@ -592,7 +633,20 @@
     fEmpresa.value = card.empresa || "";
     fEstado.value = card.estado || "pendiente";
     fPaso.value = card.proximo_paso || "";
+    archivedNote.hidden = !card.archivada;
     deleteZone.innerHTML = "";
+    var archToggleBtn = document.createElement("button");
+    archToggleBtn.type = "button"; archToggleBtn.className = "btn btn-ok";
+    archToggleBtn.textContent = card.archivada ? "Desarchivar" : "Archivar";
+    archToggleBtn.title = card.archivada
+      ? "Volver a mostrarla en el tablero"
+      : "Quitarla del tablero sin borrarla (se puede recuperar desde \"Archivadas\")";
+    archToggleBtn.addEventListener("click", function(){
+      archiveCard(card, !card.archivada);
+      closeModal();
+    });
+    deleteZone.appendChild(archToggleBtn);
+
     var delBtn = document.createElement("button");
     delBtn.type = "button"; delBtn.className = "btn btn-danger"; delBtn.textContent = "Eliminar";
     var confirmState = false;
@@ -616,6 +670,7 @@
     editingId = null;
     document.getElementById("modal-title").textContent = "Nueva tarea";
     fTitulo.value = ""; fEmpresa.value = ""; fEstado.value = "pendiente"; fPaso.value = "";
+    archivedNote.hidden = true;
     deleteZone.innerHTML = "";
     cardModalEl.classList.remove("modal-lg");
     notesSection.hidden = true;
