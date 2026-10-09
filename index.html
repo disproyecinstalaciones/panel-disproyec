@@ -287,6 +287,16 @@
   .cliente-row .dir{font-size:12.5px; color:var(--muted); margin-top:2px;}
   .cliente-row .nvisitas{font-family:"IBM Plex Mono",monospace; font-size:11.5px; color:var(--muted); white-space:nowrap;}
 
+  .empresa-buttons{display:grid; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); gap:12px; margin-top:16px;}
+  .empresa-btn{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:12px; padding:16px;
+    cursor:pointer; box-shadow:var(--shadow); text-align:left; display:flex; flex-direction:column; gap:6px;
+    font-family:inherit;
+  }
+  .empresa-btn:hover{border-color:var(--copper);}
+  .empresa-btn .nombre{font-family:"Big Shoulders",sans-serif; text-transform:uppercase; font-weight:800; font-size:17px; color:var(--ink);}
+  .empresa-btn .count{font-family:"IBM Plex Mono",monospace; font-size:12px; color:var(--muted);}
+
   /* ---------- ficha de cliente ---------- */
   .back-link{
     display:inline-flex; align-items:center; gap:4px; font-family:"IBM Plex Mono",monospace; font-size:12.5px;
@@ -392,15 +402,28 @@
 
   <!-- ---------- CLIENTES ---------- -->
   <div id="clientes-view" hidden>
-    <div id="clientes-lista">
+    <div id="empresas-lista">
       <div class="filters" style="padding-top:14px; justify-content:space-between;">
-        <span class="lbl">Empresas y clientes</span>
-        <button class="btn btn-primary btn-header" id="btn-new-cliente">+ Nuevo cliente</button>
+        <span class="lbl">Empresas que te subcontratan</span>
+        <button class="btn btn-primary btn-header" id="btn-new-empresa">+ Nueva empresa</button>
       </div>
-      <div id="clientes-groups"></div>
+      <div class="empresa-buttons" id="empresas-buttons"></div>
     </div>
+
+    <div id="empresa-detalle" hidden>
+      <button class="back-link" id="btn-back-empresas" type="button">‹ Volver a empresas</button>
+      <div class="ficha-head">
+        <div>
+          <h2 id="ed-nombre"></h2>
+          <div class="meta" id="ed-meta"></div>
+        </div>
+        <button class="btn btn-primary btn-header" id="btn-new-instalacion">+ Nueva instalación</button>
+      </div>
+      <div id="instalaciones-lista"></div>
+    </div>
+
     <div id="cliente-detalle" hidden>
-      <button class="back-link" id="btn-back-clientes" type="button">‹ Volver a clientes</button>
+      <button class="back-link" id="btn-back-clientes" type="button">‹ Volver a instalaciones</button>
       <div class="ficha-head">
         <div>
           <h2 id="fd-nombre"></h2>
@@ -408,7 +431,7 @@
           <div class="obs" id="fd-obs"></div>
         </div>
         <div style="display:flex; flex-direction:column; gap:8px;">
-          <button class="btn btn-plain btn-header" id="btn-edit-cliente">Editar cliente</button>
+          <button class="btn btn-plain btn-header" id="btn-edit-cliente">Editar instalación</button>
           <button class="btn btn-primary btn-header" id="btn-new-visita">+ Nueva visita</button>
         </div>
       </div>
@@ -558,12 +581,49 @@
   </div>
 </div>
 
+<div class="backdrop" id="backdrop-empresa" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-empresa-title">
+    <h2 id="modal-empresa-title">Nueva empresa</h2>
+    <form id="empresa-form">
+      <div class="field">
+        <label for="e-nombre">Nombre de la empresa</label>
+        <input id="e-nombre" required maxlength="80" placeholder="Ej: Zenthera Energía">
+      </div>
+      <div class="field">
+        <label for="e-contacto">Persona de contacto</label>
+        <input id="e-contacto" maxlength="80">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="e-telefono">Teléfono</label>
+          <input id="e-telefono" maxlength="30">
+        </div>
+        <div class="field">
+          <label for="e-email">Email</label>
+          <input id="e-email" type="email" maxlength="120">
+        </div>
+      </div>
+      <div class="field">
+        <label for="e-notas">Notas</label>
+        <textarea id="e-notas" maxlength="600"></textarea>
+      </div>
+      <div class="modal-actions">
+        <div></div>
+        <div class="right">
+          <button type="button" class="btn btn-plain" id="btn-cancel-empresa">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="btn-save-empresa">Guardar</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="backdrop" id="backdrop-cliente" hidden>
   <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-cliente-title">
-    <h2 id="modal-cliente-title">Nuevo cliente</h2>
+    <h2 id="modal-cliente-title">Nueva instalación</h2>
     <form id="cliente-form">
       <div class="field">
-        <label for="c-nombre">Nombre / vivienda</label>
+        <label for="c-nombre">Nombre de la instalación / vivienda</label>
         <input id="c-nombre" required maxlength="120" placeholder="Ej: Familia Pérez — Calle Mayor 12">
       </div>
       <div class="field">
@@ -763,9 +823,13 @@
   var tabClientes = document.getElementById("tab-clientes");
   var dashboardView = document.getElementById("dashboard-view");
   var clientesView = document.getElementById("clientes-view");
-  var clientesLista = document.getElementById("clientes-lista");
+  var empresasLista = document.getElementById("empresas-lista");
+  var empresaDetalle = document.getElementById("empresa-detalle");
   var clienteDetalle = document.getElementById("cliente-detalle");
-  var clientesGroupsEl = document.getElementById("clientes-groups");
+  var empresasButtonsEl = document.getElementById("empresas-buttons");
+  var edNombre = document.getElementById("ed-nombre");
+  var edMeta = document.getElementById("ed-meta");
+  var instalacionesListaEl = document.getElementById("instalaciones-lista");
   var fdNombre = document.getElementById("fd-nombre");
   var fdMeta = document.getElementById("fd-meta");
   var fdObs = document.getElementById("fd-obs");
@@ -776,6 +840,14 @@
   var tileVisitasMes = document.getElementById("tile-visitas-mes");
   var dashProximasEl = document.getElementById("dash-proximas");
   var dashProyectosEl = document.getElementById("dash-proyectos");
+
+  var backdropEmpresa = document.getElementById("backdrop-empresa");
+  var empresaForm = document.getElementById("empresa-form");
+  var eNombre = document.getElementById("e-nombre");
+  var eContacto = document.getElementById("e-contacto");
+  var eTelefono = document.getElementById("e-telefono");
+  var eEmail = document.getElementById("e-email");
+  var eNotas = document.getElementById("e-notas");
 
   var backdropCliente = document.getElementById("backdrop-cliente");
   var clienteForm = document.getElementById("cliente-form");
@@ -803,6 +875,7 @@
   var allEmpresas = [];
   var allClientes = [];
   var allVisitas = [];
+  var currentEmpresaFiltro = null;
   var currentClienteId = null;
   var editingClienteId = null;
   var materialesPorVisita = {};
@@ -1074,7 +1147,7 @@
     clientesView.hidden = view !== "clientes";
     tableroView.hidden = view !== "tablero";
     calendarioView.hidden = view !== "calendario";
-    if(view === "clientes"){ clientesLista.hidden = false; clienteDetalle.hidden = true; }
+    if(view === "clientes"){ showClientesSubview("empresas"); }
     if(view === "calendario") renderCalendar();
     if(view === "dashboard") renderDashboard();
   }
@@ -1536,50 +1609,130 @@
     });
   }
 
-  function renderClientesGroups(){
-    clientesGroupsEl.innerHTML = "";
-    if(allClientes.length === 0){
-      var hint = document.createElement("div"); hint.className = "empty-hint2"; hint.textContent = "Todavía no hay clientes. Pulsa “+ Nuevo cliente” para empezar.";
-      clientesGroupsEl.appendChild(hint);
+  // ---- navegación de la zona Clientes: empresas -> instalaciones de una empresa -> ficha ----
+  function showClientesSubview(name){
+    empresasLista.hidden = name !== "empresas";
+    empresaDetalle.hidden = name !== "empresa";
+    clienteDetalle.hidden = name !== "cliente";
+  }
+
+  function renderEmpresasButtons(){
+    empresasButtonsEl.innerHTML = "";
+    if(allEmpresas.length === 0 && allClientes.length === 0){
+      var hint = document.createElement("div"); hint.className = "empty-hint2";
+      hint.textContent = "Todavía no hay empresas. Pulsa “+ Nueva empresa” para empezar.";
+      empresasButtonsEl.appendChild(hint);
       return;
     }
-    var groups = {};
-    allClientes.forEach(function(c){
-      var key = c.empresa_id || "__sin__";
-      if(!groups[key]) groups[key] = [];
-      groups[key].push(c);
+    var empresasOrdenadas = allEmpresas.slice().sort(function(a,b){ return a.nombre.localeCompare(b.nombre); });
+    empresasOrdenadas.forEach(function(e){
+      var count = allClientes.filter(function(c){ return c.empresa_id === e.id; }).length;
+      var btn = document.createElement("button");
+      btn.type = "button"; btn.className = "empresa-btn";
+      var nombreEl = document.createElement("div"); nombreEl.className = "nombre"; nombreEl.textContent = e.nombre;
+      var countEl = document.createElement("div"); countEl.className = "count";
+      countEl.textContent = count + (count===1 ? " instalación" : " instalaciones");
+      btn.appendChild(nombreEl); btn.appendChild(countEl);
+      btn.addEventListener("click", function(){ openEmpresaDetail(e.id); });
+      empresasButtonsEl.appendChild(btn);
     });
-    var keys = Object.keys(groups).sort(function(a,b){
-      return nombreEmpresa(a === "__sin__" ? null : a).localeCompare(nombreEmpresa(b === "__sin__" ? null : b));
-    });
-    keys.forEach(function(key){
-      var section = document.createElement("div"); section.className = "empresa-group";
-      var h3 = document.createElement("h3"); h3.textContent = key === "__sin__" ? "Sin empresa (directo)" : nombreEmpresa(key);
-      section.appendChild(h3);
-      var list = document.createElement("div"); list.className = "cliente-list";
-      groups[key].forEach(function(c){
-        var row = document.createElement("div"); row.className = "cliente-row";
-        var left = document.createElement("div");
-        var nombreEl = document.createElement("div"); nombreEl.className = "nombre"; nombreEl.textContent = c.nombre;
-        left.appendChild(nombreEl);
-        if(c.direccion){ var dirEl = document.createElement("div"); dirEl.className = "dir"; dirEl.textContent = c.direccion; left.appendChild(dirEl); }
-        row.appendChild(left);
-        var nv = document.createElement("span"); nv.className = "nvisitas mono";
-        var count = allVisitas.filter(function(v){ return v.cliente_id === c.id; }).length;
-        nv.textContent = count + (count===1 ? " visita" : " visitas");
-        row.appendChild(nv);
-        row.addEventListener("click", function(cliente){ return function(){ openClienteDetail(cliente); }; }(c));
-        list.appendChild(row);
-      });
-      section.appendChild(list);
-      clientesGroupsEl.appendChild(section);
-    });
+
+    var sinEmpresaCount = allClientes.filter(function(c){ return !c.empresa_id; }).length;
+    var btnSin = document.createElement("button");
+    btnSin.type = "button"; btnSin.className = "empresa-btn";
+    var nombreSinEl = document.createElement("div"); nombreSinEl.className = "nombre"; nombreSinEl.textContent = "Sin empresa (directo)";
+    var countSinEl = document.createElement("div"); countSinEl.className = "count";
+    countSinEl.textContent = sinEmpresaCount + (sinEmpresaCount===1 ? " instalación" : " instalaciones");
+    btnSin.appendChild(nombreSinEl); btnSin.appendChild(countSinEl);
+    btnSin.addEventListener("click", function(){ openEmpresaDetail("__sin__"); });
+    empresasButtonsEl.appendChild(btnSin);
   }
+
+  function openEmpresaDetail(empresaIdOrSentinel){
+    currentEmpresaFiltro = empresaIdOrSentinel;
+    showClientesSubview("empresa");
+    var esDirecto = empresaIdOrSentinel === "__sin__";
+    edNombre.textContent = esDirecto ? "Sin empresa (directo)" : nombreEmpresa(empresaIdOrSentinel);
+    if(esDirecto){
+      edMeta.textContent = "Instalaciones sin empresa intermediaria.";
+    } else {
+      var emp = allEmpresas.find(function(e){ return e.id === empresaIdOrSentinel; });
+      var metaParts = [];
+      if(emp && emp.contacto) metaParts.push(emp.contacto);
+      if(emp && emp.telefono) metaParts.push(emp.telefono);
+      if(emp && emp.email) metaParts.push(emp.email);
+      edMeta.textContent = metaParts.join(" · ");
+    }
+    renderInstalacionesList();
+  }
+
+  function renderInstalacionesList(){
+    instalacionesListaEl.innerHTML = "";
+    var esDirecto = currentEmpresaFiltro === "__sin__";
+    var instalaciones = allClientes.filter(function(c){
+      return esDirecto ? !c.empresa_id : c.empresa_id === currentEmpresaFiltro;
+    });
+    if(instalaciones.length === 0){
+      var hint = document.createElement("div"); hint.className = "empty-hint2";
+      hint.textContent = "Todavía no hay instalaciones aquí. Pulsa “+ Nueva instalación” para empezar.";
+      instalacionesListaEl.appendChild(hint);
+      return;
+    }
+    var list = document.createElement("div"); list.className = "cliente-list";
+    instalaciones.forEach(function(c){
+      var row = document.createElement("div"); row.className = "cliente-row";
+      var left = document.createElement("div");
+      var nombreEl = document.createElement("div"); nombreEl.className = "nombre"; nombreEl.textContent = c.nombre;
+      left.appendChild(nombreEl);
+      if(c.direccion){ var dirEl = document.createElement("div"); dirEl.className = "dir"; dirEl.textContent = c.direccion; left.appendChild(dirEl); }
+      row.appendChild(left);
+      var nv = document.createElement("span"); nv.className = "nvisitas mono";
+      var count = allVisitas.filter(function(v){ return v.cliente_id === c.id; }).length;
+      nv.textContent = count + (count===1 ? " visita" : " visitas");
+      row.appendChild(nv);
+      row.addEventListener("click", function(cliente){ return function(){ openClienteDetail(cliente); }; }(c));
+      list.appendChild(row);
+    });
+    instalacionesListaEl.appendChild(list);
+  }
+
+  document.getElementById("btn-back-empresas").addEventListener("click", function(){
+    currentEmpresaFiltro = null;
+    showClientesSubview("empresas");
+  });
+
+  document.getElementById("btn-new-empresa").addEventListener("click", openCreateEmpresa);
+  document.getElementById("btn-cancel-empresa").addEventListener("click", closeModalEmpresa);
+  backdropEmpresa.addEventListener("click", function(ev){ if(ev.target === backdropEmpresa) closeModalEmpresa(); });
+
+  function openCreateEmpresa(){
+    eNombre.value = ""; eContacto.value = ""; eTelefono.value = ""; eEmail.value = ""; eNotas.value = "";
+    backdropEmpresa.hidden = false;
+    eNombre.focus();
+  }
+  function closeModalEmpresa(){ backdropEmpresa.hidden = true; }
+
+  empresaForm.addEventListener("submit", function(ev){
+    ev.preventDefault();
+    var nombre = eNombre.value.trim();
+    if(!nombre) return;
+    supabase.from("empresas").insert({
+      nombre: nombre,
+      contacto: eContacto.value.trim(),
+      telefono: eTelefono.value.trim(),
+      email: eEmail.value.trim(),
+      notas: eNotas.value.trim()
+    }).then(function(res){
+      if(res.error){ showBanner("No se pudo guardar la empresa: " + res.error.message); return; }
+      closeModalEmpresa();
+      loadEmpresas().then(function(){ renderEmpresasButtons(); });
+    });
+  });
 
   function openClienteDetail(cliente){
     currentClienteId = cliente.id;
-    clientesLista.hidden = true;
-    clienteDetalle.hidden = false;
+    currentEmpresaFiltro = cliente.empresa_id || "__sin__";
+    showClientesSubview("cliente");
     fdNombre.textContent = cliente.nombre;
     var metaParts = [];
     metaParts.push(nombreEmpresa(cliente.empresa_id));
@@ -1592,7 +1745,9 @@
   }
 
   document.getElementById("btn-back-clientes").addEventListener("click", function(){
-    clienteDetalle.hidden = true; clientesLista.hidden = false; currentClienteId = null;
+    currentClienteId = null;
+    showClientesSubview("empresa");
+    renderInstalacionesList();
   });
 
   document.getElementById("btn-edit-cliente").addEventListener("click", function(){
@@ -1602,8 +1757,10 @@
 
   function openCreateCliente(){
     editingClienteId = null;
-    document.getElementById("modal-cliente-title").textContent = "Nuevo cliente";
-    cNombre.value = ""; cEmpresa.value = ""; cTelefono.value = ""; cEmail.value = ""; cDireccion.value = ""; cObs.value = "";
+    document.getElementById("modal-cliente-title").textContent = "Nueva instalación";
+    cNombre.value = "";
+    cEmpresa.value = currentEmpresaFiltro && currentEmpresaFiltro !== "__sin__" ? nombreEmpresa(currentEmpresaFiltro) : "";
+    cTelefono.value = ""; cEmail.value = ""; cDireccion.value = ""; cObs.value = "";
     deleteZoneCliente.innerHTML = "";
     backdropCliente.hidden = false;
     cNombre.focus();
@@ -1611,7 +1768,7 @@
 
   function openEditCliente(cliente){
     editingClienteId = cliente.id;
-    document.getElementById("modal-cliente-title").textContent = "Editar cliente";
+    document.getElementById("modal-cliente-title").textContent = "Editar instalación";
     cNombre.value = cliente.nombre || "";
     cEmpresa.value = nombreEmpresa(cliente.empresa_id) === "Sin empresa" ? "" : nombreEmpresa(cliente.empresa_id);
     cTelefono.value = cliente.telefono || "";
@@ -1620,14 +1777,15 @@
     cObs.value = cliente.observaciones || "";
     deleteZoneCliente.innerHTML = "";
     var delBtn = document.createElement("button");
-    delBtn.type = "button"; delBtn.className = "btn btn-danger"; delBtn.textContent = "Eliminar cliente";
+    delBtn.type = "button"; delBtn.className = "btn btn-danger"; delBtn.textContent = "Eliminar instalación";
     var confirmState = false;
     delBtn.addEventListener("click", function(){
       if(!confirmState){ confirmState = true; delBtn.textContent = "¿Seguro? Confirmar (borra también sus visitas)"; return; }
       supabase.from("clientes").delete().eq("id", cliente.id).then(function(res){
         if(res.error){ showBanner("No se pudo eliminar: " + res.error.message); return; }
         closeModalCliente();
-        clienteDetalle.hidden = true; clientesLista.hidden = false; currentClienteId = null;
+        currentClienteId = null;
+        showClientesSubview("empresa");
         refreshClientesData();
       });
     });
@@ -1638,7 +1796,7 @@
 
   function closeModalCliente(){ backdropCliente.hidden = true; editingClienteId = null; }
 
-  document.getElementById("btn-new-cliente").addEventListener("click", openCreateCliente);
+  document.getElementById("btn-new-instalacion").addEventListener("click", openCreateCliente);
   document.getElementById("btn-cancel-cliente").addEventListener("click", closeModalCliente);
   backdropCliente.addEventListener("click", function(ev){ if(ev.target === backdropCliente) closeModalCliente(); });
 
@@ -1660,12 +1818,15 @@
         ? supabase.from("clientes").update(payload).eq("id", editingClienteId)
         : supabase.from("clientes").insert(payload);
       task.then(function(res){
-        if(res.error){ showBanner("No se pudo guardar el cliente: " + res.error.message); return; }
+        if(res.error){ showBanner("No se pudo guardar la instalación: " + res.error.message); return; }
         closeModalCliente();
         refreshClientesData().then(function(){
           if(currentClienteId){
             var c = allClientes.find(function(x){ return x.id === currentClienteId; });
             if(c) openClienteDetail(c);
+          } else if(empresaId !== null || currentEmpresaFiltro === "__sin__"){
+            currentEmpresaFiltro = empresaId || "__sin__";
+            showClientesSubview("empresa");
           }
         });
       });
@@ -1806,7 +1967,11 @@
         subirAdjuntos(vPlanos.files, visita.id, "plano")
       ]).then(function(){
         backdropVisita.hidden = true;
-        loadVisitas().then(function(){ renderVisitasTimeline(); renderClientesGroups(); });
+        loadVisitas().then(function(){
+          renderVisitasTimeline();
+          renderEmpresasButtons();
+          if(!empresaDetalle.hidden) renderInstalacionesList();
+        });
       });
     });
   });
@@ -1816,7 +1981,9 @@
   // ======================================================================
   function refreshClientesData(){
     return Promise.all([loadClientes(), loadVisitas()]).then(function(){
-      renderClientesGroups();
+      renderEmpresasButtons();
+      if(!empresaDetalle.hidden) renderInstalacionesList();
+      if(currentClienteId && !clienteDetalle.hidden) renderVisitasTimeline();
       if(!dashboardView.hidden) renderDashboard();
     });
   }
