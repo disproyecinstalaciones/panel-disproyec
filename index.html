@@ -340,6 +340,23 @@
   .ficha-head .meta{font-size:13px; color:var(--muted); margin-top:4px; line-height:1.6;}
   .ficha-head .obs{font-size:13.5px; margin-top:10px; white-space:pre-wrap;}
 
+  .tarifa-calc{
+    margin:14px 0 18px; padding:14px 16px; border:1px solid var(--line); border-radius:12px;
+    background:var(--paper-raised); box-shadow:var(--shadow); display:flex; flex-direction:column; gap:12px;
+  }
+  .tarifa-calc-title{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; letter-spacing:0.06em; text-transform:uppercase; color:var(--muted);
+  }
+  .tarifa-calc-row{display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end;}
+  .tarifa-calc-row .field{margin-bottom:0; min-width:150px;}
+  .tarifa-calc .chk-label{
+    display:flex; align-items:center; gap:7px; font-family:"IBM Plex Sans",sans-serif; font-size:13.5px; color:var(--ink);
+    padding-bottom:9px;
+  }
+  .tarifa-calc .chk-label input{width:auto;}
+  .tarifa-calc-resultado{font-family:"Big Shoulders",sans-serif; font-weight:800; font-size:22px; color:var(--copper);}
+  .tarifa-calc-resultado.is-aviso{font-family:"IBM Plex Sans",sans-serif; font-weight:600; font-size:13.5px; color:var(--muted);}
+
   .visita-card{background:var(--paper-raised); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-top:12px; box-shadow:var(--shadow);}
   .visita-head{display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;}
   .visita-tipo{
@@ -460,6 +477,26 @@
         </div>
         <button class="btn btn-primary btn-header" id="btn-new-instalacion">+ Nueva instalación</button>
       </div>
+
+      <div id="tarifa-calc" class="tarifa-calc" hidden>
+        <div class="tarifa-calc-title">Calculadora de precio — tarifa de <span id="tc-empresa-nombre"></span></div>
+        <div class="tarifa-calc-row">
+          <div class="field">
+            <label for="tc-paneles">Nº de paneles</label>
+            <input id="tc-paneles" type="number" min="1" step="1" placeholder="Ej. 12">
+          </div>
+          <div class="field">
+            <label>Tensión</label>
+            <div class="tipo-chip-row" id="tc-tension-row">
+              <button type="button" class="chip" data-tension="M" aria-pressed="true">Monofásica</button>
+              <button type="button" class="chip" data-tension="T" aria-pressed="false">Trifásica</button>
+            </div>
+          </div>
+          <label class="chk-label"><input id="tc-bateria" type="checkbox"> Lleva batería</label>
+        </div>
+        <div class="tarifa-calc-resultado" id="tc-resultado">Introduce el nº de paneles</div>
+      </div>
+
       <div id="instalaciones-lista"></div>
     </div>
 
@@ -884,6 +921,12 @@
   var edNombre = document.getElementById("ed-nombre");
   var edMeta = document.getElementById("ed-meta");
   var instalacionesListaEl = document.getElementById("instalaciones-lista");
+  var tarifaCalc = document.getElementById("tarifa-calc");
+  var tcEmpresaNombre = document.getElementById("tc-empresa-nombre");
+  var tcPaneles = document.getElementById("tc-paneles");
+  var tcTensionRow = document.getElementById("tc-tension-row");
+  var tcBateria = document.getElementById("tc-bateria");
+  var tcResultado = document.getElementById("tc-resultado");
   var fdNombre = document.getElementById("fd-nombre");
   var fdTipos = document.getElementById("fd-tipos");
   var fdMeta = document.getElementById("fd-meta");
@@ -987,6 +1030,7 @@
   var allClientes = [];
   var allVisitas = [];
   var currentEmpresaFiltro = null;
+  var tarifasPorEmpresa = {};
   var currentClienteId = null;
   var editingClienteId = null;
   var materialesPorVisita = {};
@@ -1766,6 +1810,7 @@
     edNombre.textContent = esDirecto ? "Sin empresa (directo)" : nombreEmpresa(empresaIdOrSentinel);
     if(esDirecto){
       edMeta.textContent = "Instalaciones sin empresa intermediaria.";
+      tarifaCalc.hidden = true;
     } else {
       var emp = allEmpresas.find(function(e){ return e.id === empresaIdOrSentinel; });
       var metaParts = [];
@@ -1773,9 +1818,66 @@
       if(emp && emp.telefono) metaParts.push(emp.telefono);
       if(emp && emp.email) metaParts.push(emp.email);
       edMeta.textContent = metaParts.join(" · ");
+      loadTarifasEmpresa(empresaIdOrSentinel).then(function(rows){
+        renderTarifaCalc(empresaIdOrSentinel, emp ? emp.nombre : "", rows);
+      });
     }
     renderInstalacionesList();
   }
+
+  // ---- calculadora de precio por tarifa (nº de paneles / tensión / batería) ----
+  function loadTarifasEmpresa(empresaId){
+    if(tarifasPorEmpresa[empresaId]) return Promise.resolve(tarifasPorEmpresa[empresaId]);
+    return supabase.from("tarifas_paneles").select("*").eq("empresa_id", empresaId).then(function(res){
+      var rows = (res.error ? [] : (res.data || []));
+      tarifasPorEmpresa[empresaId] = rows;
+      return rows;
+    });
+  }
+
+  function renderTarifaCalc(empresaId, nombre, rows){
+    if(!rows || rows.length === 0){ tarifaCalc.hidden = true; return; }
+    tarifaCalc.hidden = false;
+    tcEmpresaNombre.textContent = nombre;
+    tcPaneles.value = "";
+    tcBateria.checked = false;
+    Array.prototype.slice.call(tcTensionRow.querySelectorAll(".chip")).forEach(function(btn){
+      btn.setAttribute("aria-pressed", btn.getAttribute("data-tension") === "M" ? "true" : "false");
+    });
+    computeTarifa(empresaId);
+  }
+
+  function computeTarifa(empresaId){
+    var rows = tarifasPorEmpresa[empresaId] || [];
+    var paneles = parseInt(tcPaneles.value, 10);
+    if(!paneles){
+      tcResultado.textContent = "Introduce el nº de paneles";
+      tcResultado.classList.add("is-aviso");
+      return;
+    }
+    var fila = rows.filter(function(r){ return r.paneles === paneles; })[0];
+    if(!fila){
+      tcResultado.textContent = "Nº de paneles fuera de tarifa (" + paneles + ") — revísalo a mano con " + tcEmpresaNombre.textContent + ".";
+      tcResultado.classList.add("is-aviso");
+      return;
+    }
+    var tensionBtn = tcTensionRow.querySelector('.chip[aria-pressed="true"]');
+    var tension = tensionBtn ? tensionBtn.getAttribute("data-tension") : "M";
+    var precio = tension === "T" ? Number(fila.precio_tri) : Number(fila.precio_mono);
+    if(tcBateria.checked) precio += Number(fila.extra_bateria || 0);
+    tcResultado.classList.remove("is-aviso");
+    tcResultado.textContent = precio.toLocaleString("es-ES", {minimumFractionDigits:2, maximumFractionDigits:2}) + " €";
+  }
+
+  tcPaneles.addEventListener("input", function(){ computeTarifa(currentEmpresaFiltro); });
+  tcBateria.addEventListener("change", function(){ computeTarifa(currentEmpresaFiltro); });
+  Array.prototype.slice.call(tcTensionRow.querySelectorAll(".chip")).forEach(function(btn){
+    btn.addEventListener("click", function(){
+      Array.prototype.slice.call(tcTensionRow.querySelectorAll(".chip")).forEach(function(b){ b.setAttribute("aria-pressed","false"); });
+      btn.setAttribute("aria-pressed","true");
+      computeTarifa(currentEmpresaFiltro);
+    });
+  });
 
   function renderInstalacionesList(){
     instalacionesListaEl.innerHTML = "";
